@@ -210,6 +210,24 @@
             );
         }
 
+        // Close WebView
+        function closeWebView() {
+            logEvent('closeWebview', 'Requesting close...');
+
+            triggerNativeCloseWebview(
+                // Success callback
+                function() {
+                    logEvent('closeWebview', 'WebView will close');
+                    showResult('closeResult', 'Closing...', 'success');
+                },
+                // Error callback
+                function(errorCode, errorDescription) {
+                    logEvent('closeWebview', 'Error: ' + errorCode + ' - ' + errorDescription);
+                    showResult('closeResult', errorCode + ': ' + errorDescription, 'error');
+                }
+            );
+        }
+
         // Show result
         function showResult(elementId, message, type) {
             const element = document.getElementById(elementId);
