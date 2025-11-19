@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniApp JSBridge Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result {
+            background: #f7f7f7;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #333;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .log {
+            background: #2d3748;
+            color: #68d391;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-item {
+            margin-bottom: 4px;
+            opacity: 0.9;
+        }
+
+        .log-item .time {
+            color: #90cdf4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 MiniApp JSBridge</h1>
+            <p>Test native iOS integration</p>
+        </div>
+
+        <div class="card">
+            <h2>📱 QR Code Scanner</h2>
+            <button class="button" onclick="scanQRCode()">
+                Scan QR Code
+            </button>
+            <div id="qrResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>🚪 Close WebView</h2>
+            <button class="button" onclick="closeWebView()">
+                Close WebView
+            </button>
+            <div id="closeResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Event Log</h2>
+            <div id="eventLog" class="log">
+                <div class="log-item">
+                    <span class="time">[System]</span> JSBridge initialized
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize bridge object
+        window.bridge = window.bridge || {};
+
+        // JSBridge helper functions (matching spec)
+        const triggerNativeGetQrCode = (callback, callbackError) => {
+            if (window.JSBridge) {
+                // Android
+                window.bridge.getQrCodeCallbackError = callbackError;
+                window.bridge.getQrCodeCallback = callback;
+                window.JSBridge.getQrCode?.();
+            } else if (window.webkit) {
+                // iOS
+                window.bridge.getQrCodeCallbackError = callbackError;
+                window.bridge.getQrCodeCallback = callback;
+                window.webkit.messageHandlers.observer.postMessage({
+                    name: 'getQrCode',
+                });
+            }
+        };
+
+        const triggerNativeCloseWebview = (callback, callbackError) => {
+            if (window.JSBridge) {
+                // Android
+                window.bridge.closeWebviewCallbackError = callbackError;
+                window.bridge.closeWebviewCallback = callback;
+                window.JSBridge.closeWebview?.();
+            } else if (window.webkit) {
+                // iOS
+                window.bridge.closeWebviewCallbackError = callbackError;
+                window.bridge.closeWebviewCallback = callback;
+                window.webkit.messageHandlers.observer.postMessage({
+                    name: 'closeWebview',
+                });
+            }
+        };
+
+        // Scan QR Code
+        function scanQRCode() {
+            logEvent('getQrCode', 'Requesting QR scan...');
+
+            triggerNativeGetQrCode(
+                // Success callback
+                function(qrData) {
+                    logEvent('getQrCode', 'Success: ' + qrData);
+                    showResult('qrResult', qrData, 'success');
+                },
+                // Error callback
+                function(errorCode, errorDescription) {
+                    logEvent('getQrCode', 'Error: ' + errorCode + ' - ' + errorDescription);
+                    showResult('qrResult', errorCode + ': ' + errorDescription, 'error');
+                }
+            );
+        }
+
+        // Show result
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.className = 'result ' + type;
+            element.textContent = type === 'success' ? '✅ ' + message : '❌ ' + message;
+        }
+
+        // Log event
+        function logEvent(event, data) {
+            const logElement = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+
+            let logText = `<span class="time">[${time}]</span> ${event}`;
+            if (data) {
+                logText += `: ${typeof data === 'object' ? JSON.stringify(data) : data}`;
+            }
+
+            logItem.innerHTML = logText;
+            logElement.appendChild(logItem);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // Initial log
+        logEvent('Page', 'Demo page loaded');
+    </script>
+</body>
+</html>
